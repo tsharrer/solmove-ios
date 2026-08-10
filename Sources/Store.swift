@@ -33,6 +33,8 @@ private struct PersistedState: Codable {
     var lightMode: Bool
     var favStudios: [String]?              // studioIds the member favorites
     var favInstructors: [String]?          // instructorIds the member follows
+    var threads: [MessageThread]?
+    var messages: [Message]?
 }
 
 @MainActor
@@ -53,6 +55,8 @@ final class Store: ObservableObject {
     @Published var lightMode: Bool = false
     @Published var favStudios: Set<String> = []
     @Published var favInstructors: Set<String> = []
+    @Published var threads: [MessageThread] = Seed.threads
+    @Published var messages: [Message] = Seed.messages
 
 
     init() { load() }
@@ -126,6 +130,49 @@ final class Store: ObservableObject {
     }
     func followers(instructor: Instructor) -> Int {
         instructor.shiftsCovered * 18 + Int(instructor.score * 40) + (isFavInstructor(instructor.id) ? 1 : 0)
+    }
+
+    // MARK: - Messaging (studio <-> instructor)
+    /// Threads visible to the current persona (studio sees its threads; instructor sees theirs).
+    var myThreads: [MessageThread] {
+        switch role {
+        case .studio:
+            let sid = managedStudio?.id
+            return threads.filter { $0.studioId == sid }
+        case .instructor:
+            return threads.filter { $0.instructorId == currentInstructorId }
+        case .member:
+            return []
+        }
+    }
+    func messages(in threadId: String) -> [Message] {
+        messages.filter { $0.threadId == threadId }.sorted { $0.ts < $1.ts }
+    }
+    func lastMessage(in threadId: String) -> Message? { messages(in: threadId).last }
+
+    /// The counterpart shown in a thread row, from the current persona's point of view.
+    func counterpartName(for thread: MessageThread) -> String {
+        role == .studio
+            ? (instructor(thread.instructorId)?.name ?? "Instructor")
+            : (studio(thread.studioId)?.name ?? "Studio")
+    }
+
+    /// Find or create a thread between a studio and an instructor.
+    @discardableResult
+    func thread(studioId: String, instructorId: String) -> MessageThread {
+        if let t = threads.first(where: { $0.studioId == studioId && $0.instructorId == instructorId }) { return t }
+        let t = MessageThread(id: "th\(Int(Date().timeIntervalSince1970))", studioId: studioId, instructorId: instructorId)
+        threads.append(t); save()
+        return t
+    }
+
+    func send(threadId: String, text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, role != .member else { return }
+        messages.append(Message(id: "m\(Int(Date().timeIntervalSince1970 * 1000))",
+                                threadId: threadId, senderRole: role, text: trimmed,
+                                ts: Date().timeIntervalSince1970))
+        save()
     }
 
     func occupancy(_ cls: GymClass) -> Int {
@@ -280,6 +327,7 @@ final class Store: ObservableObject {
         instructors = Seed.instructors; shifts = Seed.shifts
         currentInstructorId = "in1"; role = .member
         favStudios = []; favInstructors = []
+        threads = Seed.threads; messages = Seed.messages
         save()
     }
 
@@ -290,7 +338,8 @@ final class Store: ObservableObject {
                                    studios: studios, classes: classes,
                                    instructors: instructors, shifts: shifts,
                                    currentInstructorId: currentInstructorId, lightMode: lightMode,
-                                   favStudios: Array(favStudios), favInstructors: Array(favInstructors))
+                                   favStudios: Array(favStudios), favInstructors: Array(favInstructors),
+                                   threads: threads, messages: messages)
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: Store.key)
         }
@@ -305,5 +354,6 @@ final class Store: ObservableObject {
         instructors = s.instructors; shifts = s.shifts
         currentInstructorId = s.currentInstructorId; lightMode = s.lightMode
         favStudios = Set(s.favStudios ?? []); favInstructors = Set(s.favInstructors ?? [])
+        threads = s.threads ?? Seed.threads; messages = s.messages ?? Seed.messages
     }
 }

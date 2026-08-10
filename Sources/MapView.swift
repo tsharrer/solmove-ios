@@ -10,6 +10,7 @@ extension Studio {
 
 struct MapView: View {
     @EnvironmentObject var store: Store
+    @StateObject private var location = LocationManager()
     @State private var selected: Studio?
     @State private var camera: MapCameraPosition = .region(
         MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 29.752, longitude: -95.40),
@@ -19,6 +20,7 @@ struct MapView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             Map(position: $camera) {
+                UserAnnotation()
                 ForEach(store.studios) { studio in
                     Annotation(studio.name, coordinate: studio.coordinate) {
                         Button { selected = studio } label: { pin(studio) }
@@ -28,6 +30,25 @@ struct MapView: View {
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
             .ignoresSafeArea(edges: .bottom)
 
+            // Locate-me button (top-right).
+            VStack {
+                HStack {
+                    Spacer()
+                    Button { location.requestLocation() } label: {
+                        Image(systemName: "location.fill")
+                            .font(.headline)
+                            .padding(12)
+                            .background(Palette.card(store.lightMode))
+                            .foregroundColor(Palette.accent)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Palette.line(store.lightMode), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
+                    }
+                    .padding(.trailing, 16).padding(.top, 8)
+                }
+                Spacer()
+            }
+
             if let studio = selected {
                 selectedCard(studio)
                     .padding(.horizontal, 16)
@@ -36,6 +57,14 @@ struct MapView: View {
             }
         }
         .animation(.spring(duration: 0.3), value: selected?.id)
+        .onChange(of: location.coordinate?.latitude) { _, _ in
+            if let c = location.coordinate {
+                withAnimation {
+                    camera = .region(MKCoordinateRegion(center: c,
+                        span: MKCoordinateSpan(latitudeDelta: 0.06, longitudeDelta: 0.06)))
+                }
+            }
+        }
         .sheet(item: sheetBinding) { studio in
             NavigationStack { StudioDetailView(studio: studio) }
         }

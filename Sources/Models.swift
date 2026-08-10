@@ -106,6 +106,21 @@ struct Shift: Identifiable, Codable, Hashable {
     var claimedBy: String?
 }
 
+// ---- Messaging (studio <-> instructor) ----
+struct MessageThread: Identifiable, Codable, Hashable {
+    let id: String
+    let studioId: String
+    let instructorId: String
+}
+
+struct Message: Identifiable, Codable, Hashable {
+    let id: String
+    let threadId: String
+    var senderRole: Role     // .studio or .instructor
+    var text: String
+    var ts: Double           // epoch seconds
+}
+
 // ---- Seed data (Houston launch) ----
 enum Seed {
     static let studios: [Studio] = [
@@ -140,6 +155,19 @@ enum Seed {
         Shift(id: "sh2", studioId: "st2", title: "Sub: Rhythm Ride 45",  discipline: "Cycle",    day: "Tue", time: "5:30 PM", status: "open",   claimedBy: nil),
         Shift(id: "sh3", studioId: "st5", title: "Sub: Hot 26",          discipline: "Hot Yoga", day: "Thu", time: "6:30 AM", status: "open",   claimedBy: nil),
         Shift(id: "sh4", studioId: "st4", title: "Sub: Barbell Strength",discipline: "Strength", day: "Fri", time: "6:00 PM", status: "filled", claimedBy: "in5"),
+    ]
+
+    static let threads: [MessageThread] = [
+        MessageThread(id: "th1", studioId: "st1", instructorId: "in1"),
+        MessageThread(id: "th2", studioId: "st1", instructorId: "in2"),
+    ]
+
+    // Timestamps are relative to launch so the demo always looks recent.
+    static let messages: [Message] = [
+        Message(id: "m1", threadId: "th1", senderRole: .studio,     text: "Hi Maya! Can you cover the Fri 6:00 AM Vinyasa sub this week?", ts: Date().timeIntervalSince1970 - 7200),
+        Message(id: "m2", threadId: "th1", senderRole: .instructor, text: "Absolutely, I'll take it. See you Friday 🙌", ts: Date().timeIntervalSince1970 - 6900),
+        Message(id: "m3", threadId: "th1", senderRole: .studio,     text: "Amazing, thank you! Shift is yours.", ts: Date().timeIntervalSince1970 - 6600),
+        Message(id: "m4", threadId: "th2", senderRole: .studio,     text: "Members loved your Hot 26 today — great energy!", ts: Date().timeIntervalSince1970 - 3600),
     ]
 }
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject var store: Store
     @State private var selection = 0
+    @State private var showMessages = false
 
     var body: some View {
         TabView(selection: $selection) {
@@ -13,13 +14,20 @@ struct RootView: View {
                         else { ZStack { Palette.bg(store.lightMode).ignoresSafeArea(); t.view } }
                     }
                     .navigationTitle(t.title)
-                    .toolbar { RoleToolbar() }
+                    .toolbar { RoleToolbar(onMessages: { showMessages = true }) }
                 }
                 .tabItem { Label(t.title, systemImage: t.icon) }
                 .tag(idx)
             }
         }
+        .sheet(isPresented: $showMessages) {
+            NavigationStack { MessagesView() }.environmentObject(store)
+        }
         .onAppear {
+            if let r = ProcessInfo.processInfo.environment["SOLMOVE_ROLE"],
+               let role = Role(rawValue: r) {
+                store.setRole(role)
+            }
             if let raw = ProcessInfo.processInfo.environment["SOLMOVE_TAB"], let i = Int(raw) {
                 selection = min(i, tabs.count - 1)
             }
@@ -76,6 +84,7 @@ struct ThemedScreen<Content: View>: View {
 
 struct RoleToolbar: ToolbarContent {
     @EnvironmentObject var store: Store
+    var onMessages: (() -> Void)? = nil
     var body: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             HStack(spacing: 2) {
@@ -92,6 +101,13 @@ struct RoleToolbar: ToolbarContent {
                 }
             } label: {
                 Image(systemName: store.role.icon)
+            }
+        }
+        if store.role != .member, let onMessages {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: onMessages) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                }
             }
         }
         ToolbarItem(placement: .topBarTrailing) {

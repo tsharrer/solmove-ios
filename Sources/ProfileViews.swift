@@ -110,6 +110,9 @@ struct InstructorProfileContent: View {
             if store.role == .member {
                 Card { StarPicker(prompt: "Rate \(instr.name):") { store.rate(instructorId: instr.id, stars: $0) } }
             }
+            if store.role == .studio, let sid = store.managedStudio?.id {
+                MessageLink(studioId: sid, instructorId: instr.id)
+            }
         }
     }
 }
@@ -179,6 +182,9 @@ struct StudioProfileContent: View {
 
             if store.role == .member {
                 Card { StarPicker(prompt: "Rate \(s.name):") { store.rateStudio(studioId: s.id, stars: $0) } }
+            }
+            if store.role == .instructor {
+                MessageLink(studioId: s.id, instructorId: store.currentInstructorId)
             }
         }
     }
