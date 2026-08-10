@@ -77,7 +77,10 @@ struct ThemedScreen<Content: View>: View {
     var body: some View {
         ZStack {
             Palette.bg(store.lightMode).ignoresSafeArea()
-            ScrollView { content.padding(16) }
+            ScrollView {
+                content.padding(16)
+                Color.clear.frame(height: 24)   // bottom breathing room above tab bar
+            }
         }
     }
 }
