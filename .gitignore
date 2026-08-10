@@ -1,0 +1,14 @@
+# Build artifacts
+build/
+DerivedData/
+*.xcuserstate
+
+# Generated Xcode project (regenerate with `xcodegen generate`)
+Solmove.xcodeproj/
+
+# macOS
+.DS_Store
+
+# Session temp files
+_*.py
+_*.png
