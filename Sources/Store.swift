@@ -58,6 +58,15 @@ final class Store: ObservableObject {
     @Published var threads: [MessageThread] = Seed.threads
     @Published var messages: [Message] = Seed.messages
 
+    // MARK: - Session / online mode
+    @Published var isAuthenticated = false      // signed in against the API
+    @Published var isOnline = false             // catalog is live (vs local demo seed)
+    @Published var isLoading = false
+    @Published var authError: String? = nil
+    @Published var currentUserName: String = ""
+    /// Studio the signed-in studio-admin manages (nil in demo mode).
+    @Published var managedStudioId: String? = nil
+
 
     init() { load() }
 
@@ -67,8 +76,11 @@ final class Store: ObservableObject {
     func classes(for studioId: String) -> [GymClass] { classes.filter { $0.studioId == studioId } }
     var currentTier: Tier? { TIERS.first { $0.id == tierId } }
     var me: Instructor? { instructor(currentInstructorId) }
-    /// The studio managed by the current studio-persona (demo: the first studio).
-    var managedStudio: Studio? { studios.first }
+    /// The studio managed by the current studio-persona.
+    var managedStudio: Studio? {
+        if let id = managedStudioId { return studios.first { $0.id == id } }
+        return studios.first
+    }
 
     // MARK: - "Teaches at" graph
     /// Every studio where an instructor holds a recurring class or has covered a shift.
@@ -172,6 +184,9 @@ final class Store: ObservableObject {
         messages.append(Message(id: "m\(Int(Date().timeIntervalSince1970 * 1000))",
                                 threadId: threadId, senderRole: role, text: trimmed,
                                 ts: Date().timeIntervalSince1970))
+        if isOnline, let t = threads.first(where: { $0.id == threadId }) {
+            Task { try? await SolmoveAPI.shared.sendMessage(studioId: t.studioId, instructorId: t.instructorId, text: trimmed) }
+        }
         save()
     }
 
@@ -249,18 +264,26 @@ final class Store: ObservableObject {
     }
 
     // MARK: - Actions
-    func subscribe(_ tier: Tier) { tierId = tier.id; save() }
+    func subscribe(_ tier: Tier) {
+        tierId = tier.id
+        if isOnline { Task { try? await SolmoveAPI.shared.enrollMembership(tierSlug: Store.apiTierSlug(for: tier.id)) } }
+        save()
+    }
 
     func isBooked(_ cls: GymClass) -> Bool { bookings.contains(cls.id) }
 
     func toggleBooking(_ cls: GymClass) {
         if bookings.contains(cls.id) { bookings.remove(cls.id) }
-        else { bookings.insert(cls.id) }
+        else {
+            bookings.insert(cls.id)
+            if isOnline { Task { try? await SolmoveAPI.shared.book(classId: cls.id) } }
+        }
         save()
     }
 
     func rate(instructorId: String, stars: Int) {
         memberRatings[instructorId, default: []].append(stars)
+        if isOnline { Task { try? await SolmoveAPI.shared.rate(targetType: "INSTRUCTOR", targetId: instructorId, stars: stars) } }
         // award memberRated badge at >= 4.85, mirroring web app
         if let idx = instructors.firstIndex(where: { $0.id == instructorId }),
            instructorScore(instructors[idx]) >= 4.85,
@@ -272,6 +295,7 @@ final class Store: ObservableObject {
 
     func rateStudio(studioId: String, stars: Int) {
         studioRatings[studioId, default: []].append(stars)
+        if isOnline { Task { try? await SolmoveAPI.shared.rate(targetType: "STUDIO", targetId: studioId, stars: stars) } }
         if let idx = studios.firstIndex(where: { $0.id == studioId }),
            studioScore(studios[idx]) >= 4.85,
            !studios[idx].badges.contains("topRated") {
@@ -287,6 +311,7 @@ final class Store: ObservableObject {
         if let iidx = instructors.firstIndex(where: { $0.id == currentInstructorId }) {
             instructors[iidx].shiftsCovered += 1
         }
+        if isOnline { Task { try? await SolmoveAPI.shared.claimShift(id: shift.id) } }
         save()
     }
 

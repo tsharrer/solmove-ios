@@ -102,6 +102,13 @@ struct RoleToolbar: ToolbarContent {
                         Label(r.label, systemImage: r.icon).tag(r)
                     }
                 }
+                Divider()
+                if store.isOnline {
+                    Label("Signed in: \(store.currentUserName)", systemImage: "checkmark.seal.fill")
+                }
+                Button(role: .destructive) { store.logout() } label: {
+                    Label(store.isOnline ? "Log out" : "Exit demo", systemImage: "rectangle.portrait.and.arrow.right")
+                }
             } label: {
                 Image(systemName: store.role.icon)
             }

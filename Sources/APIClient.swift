@@ -103,6 +103,15 @@ actor SolmoveAPI {
     func fetchClasses() async throws -> [APIClass] {
         try await request("classes")
     }
+    func me() async throws -> APIMe {
+        try await request("auth/me", authorized: true)
+    }
+    func fetchThreads() async throws -> [APIThread] {
+        try await request("messages/threads", authorized: true)
+    }
+    func fetchThread(id: String) async throws -> APIThread {
+        try await request("messages/threads/\(id)", authorized: true)
+    }
 
     // MARK: Actions
 
@@ -163,6 +172,7 @@ struct APIInstructor: Decodable, Identifiable {
     let xp: Int
     let level: Int
     let title: String
+    let shiftsCovered: Int?
     let rating: Double
     let followers: Int
 }
@@ -177,6 +187,8 @@ struct APITier: Decodable, Identifiable {
 
 struct APIClass: Decodable, Identifiable {
     let id: String
+    let studioId: String
+    let instructorId: String?
     let title: String
     let discipline: String
     let dayOfWeek: Int
@@ -185,6 +197,32 @@ struct APIClass: Decodable, Identifiable {
     let creditCost: Int
     let booked: Int?
     let spotsLeft: Int?
+}
+
+// /auth/me — resolves which studio/instructor the user represents.
+struct APIMe: Decodable {
+    let id: String
+    let name: String
+    let role: String
+    let instructor: APIMeInstructor?
+    let studioAdminOf: [APIMeStudioAdmin]?
+}
+struct APIMeInstructor: Decodable { let id: String }
+struct APIMeStudioAdmin: Decodable { let studio: APIStudioRef }
+struct APIStudioRef: Decodable { let id: String; let name: String }
+
+struct APIThread: Decodable, Identifiable {
+    let id: String
+    let studioId: String
+    let instructorId: String
+    let studio: APIStudioRef?
+    let messages: [APIMessage]?
+}
+struct APIMessage: Decodable, Identifiable {
+    let id: String
+    let senderRole: String
+    let text: String
+    let createdAt: String
 }
 
 // MARK: - Encoding helpers
