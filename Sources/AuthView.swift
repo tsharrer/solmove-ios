@@ -81,6 +81,11 @@ struct AuthView: View {
                 .padding(20)
             }
         }
+        .onAppear {
+            if ProcessInfo.processInfo.environment["SOLMOVE_DEMO"] == "1" {
+                store.continueOffline()
+            }
+        }
     }
 
     private func submit() {

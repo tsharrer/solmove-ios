@@ -32,3 +32,11 @@ xcodebuild -project Solmove.xcodeproj -scheme Solmove \
 ```
 
 Requires Xcode 26+ (iOS 17 deployment target). `Solmove.xcodeproj/` is git-ignored — run `xcodegen generate` after cloning.
+
+## Run it for real (with the live backend)
+
+By default the login screen's **Continue in demo mode** runs fully offline with
+seed data. To run against the real backend (auth, live studios/classes, booking,
+gamification, messaging), follow the end-to-end setup in **[RUNNING.md](RUNNING.md)** —
+it covers starting the `solmove-api` server, pointing the app at it (simulator vs.
+physical device), logging in, and deploying to production.
